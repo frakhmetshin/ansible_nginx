@@ -11,27 +11,39 @@
                 name: epel-release
                 state: latest
 
-           - name: update yum packages
-             yum:
-                update_only: yes
-
            - name: install nginx
              yum:
                 name: nginx
-                state: present
+                state: latest
 
       - name: add new config_file
         template:
            src: ../templates/nginx.j2 
            dest: /etc/nginx/nginx.conf
 
-      - name: download location and upstream zip
-        get_url:
-           dest: /tmp/
-           url: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
+#      - name: download location and upstream zip
+#        get_url:
+#           dest: /tmp/
+#           url: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
 
+      - name: save backup upstream and location configs
+        block:
+           - name: save list of files
+             find:
+                path: /etc/nginx/add_conf
+             register: add_conf_list
+
+           - name: debug found additional configs
+             debug:
+                msg: "{{ add_conf_list }}"
+           - name: rename (backup) configs
+ #            when: add_conf_list exists        
+ 
       - name: unzip and update location and upstream confs
-        unzip:
+        unarchive:
+           remote_src: yes
+           src: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
+           dest: /etc/nginx/add_conf/
 
       - name: Check NGINX configs
            block:
