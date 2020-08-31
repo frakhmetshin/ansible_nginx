@@ -1,0 +1,58 @@
+---
+   name: test_sberbank
+   hosts: nginx_server
+   become: yes
+   tasks:
+      - name: install nginx
+        block:
+
+           - name: install extra packages
+             yum:
+                name: epel-release
+                state: latest
+
+           - name: update yum packages
+             yum:
+                update_only: yes
+
+           - name: install nginx
+             yum:
+                name: nginx
+                state: present
+
+      - name: add new config_file
+        template:
+           src: ../templates/nginx.j2 
+           dest: /etc/nginx/nginx.conf
+
+      - name: download location and upstream zip
+        get_url:
+           dest: /tmp/
+           url: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
+
+      - name: unzip and update location and upstream confs
+        unzip:
+
+      - name: Check NGINX configs
+           block:
+              - name: Register test output
+                shell: "/usr/sbin/nginx -t"
+                register: config_test_status
+
+              - name: Print output
+                debug:
+                   msg: "{{ config_test_status }}"
+
+              - name: Print status
+                debug:
+                   msg: "{{ config_test_status.rc }}"
+
+              - name: Nginx restart when status OK
+                systemd:
+                   name: nginx
+                   state: restarted
+                   enabled: yes                   
+                   daemon_reload: yes
+                when: nginx_config_status.rc == 0
+         
+...
