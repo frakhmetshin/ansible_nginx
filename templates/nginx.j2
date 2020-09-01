@@ -1,0 +1,13 @@
+server {
+        listen 8081;
+        server_name fartest;
+        access_log /var/log/nginx/fartest/access.log;
+        error_log /var/log/nginx/fartest/error.log;
+        include /etc/nginx/configs/*.conf
+        gzip on;
+        
+
+}
+
+
+

@@ -1,70 +1,82 @@
 ---
-   name: test_sberbank
-   hosts: nginx_server
+ - name: test
+   hosts: nginx_serv
    become: yes
    tasks:
       - name: install nginx
         block:
+           - name: create tmp dir if not exists
+             file: path=/tmp/nginx_package/ state=directory
 
-           - name: install extra packages
-             yum:
-                name: epel-release
-                state: latest
+           - name: get nginx repo
+             get_url:
+                url: http://nginx.org/packages/rhel/6/noarch/RPMS/nginx-release-rhel-6-0.el6.ngx.noarch.rpm
+                dest: /tmp/nginx_package/
 
-           - name: install nginx
+           - name: install rpm
              yum:
-                name: nginx
-                state: latest
+                name: /tmp/nginx_package/nginx-release-rhel-6-0.el6.ngx.noarch.rpm
+                state: present
+                allow_downgrade: yes
 
       - name: add new config_file
         template:
            src: ../templates/nginx.j2 
            dest: /etc/nginx/nginx.conf
+           backup: yes
 
-#      - name: download location and upstream zip
-#        get_url:
-#           dest: /tmp/
-#           url: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
+      - name: create tmp/config dir if not exists
+        file: path=/tmp/configs/ state=directory
 
-      - name: save backup upstream and location configs
-        block:
-           - name: save list of files
-             find:
-                path: /etc/nginx/add_conf
-             register: add_conf_list
+      - name: download location and upstream zip
+        get_url:
+           dest: /tmp/configs/
+           url: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
 
-           - name: debug found additional configs
-             debug:
-                msg: "{{ add_conf_list }}"
-           - name: rename (backup) configs
- #            when: add_conf_list exists        
- 
-      - name: unzip and update location and upstream confs
+
+      - name: create tmp/config dir if not exists
+        file: path=/tmp/configs/files/ state=directory
+
+
+      - name: unarchive add_configs
         unarchive:
+          remote_src: yes
+          src: /tmp/configs/master.zip
+          dest: /tmp/configs/files/
+
+
+      - name: create nginx/config dir if not exists
+        file: path=/etc/nginx/configs/ state=directory
+
+
+      - name: add files in confdir with backup
+        copy:
+           backup: yes
            remote_src: yes
-           src: https://github.com/frakhmetshin/nginx_additional/archive/master.zip
-           dest: /etc/nginx/add_conf/
+           src: /tmp/configs/files/
+           dest: /etc/nginx/configs/
 
       - name: Check NGINX configs
-           block:
-              - name: Register test output
-                shell: "/usr/sbin/nginx -t"
-                register: config_test_status
+        block:
 
-              - name: Print output
-                debug:
-                   msg: "{{ config_test_status }}"
+           - name: Register test output
+             shell: "/usr/sbin/nginx -t"
+             register: config_test_status
 
-              - name: Print status
-                debug:
-                   msg: "{{ config_test_status.rc }}"
+           - name: Print output
+             debug:
+                msg: "{{ config_test_status }}"
 
-              - name: Nginx restart when status OK
-                systemd:
-                   name: nginx
-                   state: restarted
-                   enabled: yes                   
-                   daemon_reload: yes
-                when: nginx_config_status.rc == 0
+           - name: Print status
+             debug:
+                msg: "{{ config_test_status.rc }}"
+
+           - name: Nginx restart when status OK
+             systemd:
+                name: nginx
+                state: restarted
+                enabled: yes                   
+                daemon_reload: yes
+             when: nginx_config_status.rc == 0
          
 ...
